@@ -3,9 +3,7 @@ import puppeteer from 'puppeteer';
 (async () => {
     try{
         const downloadBtn = `a[class="button button--primary icon-arrow-right"]`
-        const browser = await puppeteer.launch({ 
-            headless: false
-        });
+        const browser = await puppeteer.launch();
         const page = await browser.newPage();
         await page.goto('https://new.drupal.org/download', {waitUntil: 'domcontentloaded'});
         await page.waitForSelector(downloadBtn)
