@@ -1,6 +1,6 @@
 {
-  "name": "cryptosoft",
-  "module": "index.js",
+  "name": "drupal-download-puppeteer",
+  "module": "index.ts",
   "type": "module",
   "private": true,
   "devDependencies": {
@@ -10,7 +10,8 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "puppeteer": "^24.13.0",
+    "@inquirer/prompts": "^7.6.0",
+    "puppeteer": "^24.14.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2"
   }
