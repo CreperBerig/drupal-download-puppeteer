@@ -1,5 +1,6 @@
 import puppeteer, { Page } from 'puppeteer';
-import { checkbox, select } from '@inquirer/prompts';
+import { select } from '@inquirer/prompts';
+import { dbConnection } from './DB_Connection';
 
 const LOAD_DELAY = 2000; // ms
 
@@ -58,51 +59,6 @@ async function profileChosen(page: Page, params: {lang: string}) {
     if(await page.$(`div.claro-details__wrapper`)) {
         console.warn(`PHP OPcode caching can improve your site's performance considerably. It is highly recommended to have OPcache installed on your server. Site OPcache: http://php.net/manual/opcache.installation.php`);
         return choseArray[answer[1]];
-    }
-}
-
-//Function to enter a database connection
-async function dbConnection(page: Page, params: {lang: string, profile: string}) {
-    await page.goto(`http://localhost:8080/core/install.php?langcode=${params.lang}&profile=${params.profile}&continue=1`, {waitUntil: 'load'});
-    const dbTypes = await page.evaluate(() => 
-        Array.from(document.querySelectorAll('.js-form-type-radio'))
-            .map(item => {
-                return {
-                    value: item.querySelector('input[type="radio"]')?.getAttribute('value'),
-                    name: item.querySelector('label')?.textContent?.trim(),
-                }
-            })
-    )
-
-    if (dbTypes.length === 0) {
-        throw new Error('No database types found. Please ensure the database drivers are installed.');
-    } else if (dbTypes.length === 1) {
-        console.log(`Only one database type found: ${dbTypes[0].name}. Automatically selecting it.`);
-    } else {
-        const dbType = await select({
-            message: 'Select a database type',
-            choices: dbTypes,
-        })
-        await page.click(`input[value="${dbType}"]`);
-    }
-
-    await page.click(`summary[class="claro-details__summary"]`);
-
-    await page.type(`input[id="edit-drupalpgsqldriverdatabasepgsql-database"]`, enterDBparams('Enter the database name: '));
-    await page.type(`input[id="edit-drupalpgsqldriverdatabasepgsql-username"]`, enterDBparams('Enter the database user: '));
-    await page.type(`input[id="edit-drupalpgsqldriverdatabasepgsql-password""]`, enterDBparams('Enter the database password: '));
-
-    await page.type(`input[id="edit-drupalpgsqldriverdatabasepgsql-host"]`, prompt('Enter the database host (default: localhost): ') || 'localhost');
-    await page.type(`input[id="edit-drupalpgsqldriverdatabasepgsql-port"]`, prompt('Enter the database port (default: 5432): ') || '5432');
-    let DB_prefix = prompt('Enter the database table prefix (not requierd): ');
-    if( DB_prefix) await page.type(`input[id="edit-drupalpgsqldriverdatabasepgsql-prefix"]`, DB_prefix);
-}
-
-function enterDBparams(message: string) {
-    while (true) {
-        const answer = prompt(message);
-        if (answer) return answer;
-        console.error('Input cannot be empty. Please try again.');
     }
 }
 
