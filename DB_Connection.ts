@@ -34,8 +34,10 @@ export async function dbConnection(page: Page, params: {lang: string, profile: s
     await page.type(`input[id="edit-drupalpgsqldriverdatabasepgsql-username"]`, await input({message: 'Enter the database user:', required: true}));
     await page.type(`input[id="edit-drupalpgsqldriverdatabasepgsql-password"]`, await input({message: 'Enter the database password:', required: true}));
 
-    await page.type(`input[id="edit-drupalpgsqldriverdatabasepgsql-host"]`, await input({message: 'Enter the database host (default: localhost):', default: ''}));
-    await page.type(`input[id="edit-drupalpgsqldriverdatabasepgsql-port"]`, await input({message: 'Enter the database port (default: 5432):', default: ''}));
+    await page.$eval(`input[id="edit-drupalpgsqldriverdatabasepgsql-host"]`, (el: HTMLInputElement) => el.value = '');
+    await page.type(`input[id="edit-drupalpgsqldriverdatabasepgsql-host"]`, await input({message: 'Enter the database host (default: localhost):', default: 'localhost'}));
+    await page.$eval(`input[id="edit-drupalpgsqldriverdatabasepgsql-port"]`, (el: HTMLInputElement) => el.value = '');
+    await page.type(`input[id="edit-drupalpgsqldriverdatabasepgsql-port"]`, await input({message: 'Enter the database port (default: 5432):', default: '5432'}));
     await page.type(`input[id="edit-drupalpgsqldriverdatabasepgsql-prefix"]`, await input({message: 'Enter the database table prefix (not requierd):', default: ''}));
 
     await Promise.all([

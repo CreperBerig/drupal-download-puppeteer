@@ -1,6 +1,7 @@
 import puppeteer, { Page } from 'puppeteer';
 import { input, select } from '@inquirer/prompts';
 import { dbConnection } from './DB_Connection';
+const inputs = require('@inquirer/inputs');
 
 const LOAD_DELAY = 1000; // ms
 
@@ -112,10 +113,13 @@ async function profileChosen(page: Page, params: {lang: string}) {
         }
     }
 
-    if(await page.$(`ul`)){
+    try {
+        await page.waitForSelector('ul', { timeout: 5000 });
         console.log(`\nDrupal installation is already. You can access your site at http://localhost:8080/`);
         await browser.close();
         return;
+    } catch {
+        console.log(`\nDrupal installation is not yet complete. Continuing with the installation...`);
     }
 
     let isDownload = false;
@@ -129,7 +133,7 @@ async function profileChosen(page: Page, params: {lang: string}) {
     console.log(`\nConfigure site`);
     console.log(`\tSite information`);
     await page.type(`input[id="edit-site-name"]`, await input({message: 'Site name:', required: true}));
-    await page.type(`input[id="edit-site-mail"]`, await input({message: 'Site/Account email address:', required: true}));
+    await page.type(`input[id="edit-site-mail"]`, await input({message: 'Site/Account email address:', required: true, validate: (input: string) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/).test(input)}));
     console.log(`\tSite maintenance account`);
 
     let username;
@@ -143,8 +147,9 @@ async function profileChosen(page: Page, params: {lang: string}) {
         }
     }
     await page.type(`input[id="edit-account-name"]`, username);
-    await page.type(`input[id="edit-account-pass-pass1"]`, await input({message: 'Password:', required: true}));
-    await page.type(`input[id="edit-account-pass-pass2"]`, await input({message: 'Confirm password:', required: true}));
+    const password = await passwordEnter();
+    await page.type(`input[id="edit-account-pass-pass1"]`, password);
+    await page.type(`input[id="edit-account-pass-pass2"]`, password);
 
     await Promise.all([
         page.click(`input[data-drupal-selector="edit-submit"]`),
@@ -154,3 +159,21 @@ async function profileChosen(page: Page, params: {lang: string}) {
     console.log(`\nDrupal installation is complete! You can access your site at http://localhost:8080/`);
     await browser.close();
 })();
+
+async function passwordEnter() {
+    console.log(`\nEnter a password for the maintenance account. The password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@$#&-).`);
+    while (true) {
+        const password = await inputs.password({ 
+            message: 'Enter a password:', 
+            required: true,
+            validate: (input: string) => (/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@$#&\-])[a-zA-Z\d!@$#&\-]{8,}$/).test(input)
+        });
+        const RepeatPassword = await inputs.password({ 
+            message: 'Repeat the password:', 
+            required: true,
+            validate: (input: string) => (/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@$#&\-])[a-zA-Z\d!@$#&\-]{8,}$/).test(input)
+        });
+        if (password === RepeatPassword) return password;
+        console.error('Passwords do not match. Please try again.');
+    }
+}
