@@ -1,7 +1,7 @@
 import puppeteer, { Page } from 'puppeteer';
 import { input, select } from '@inquirer/prompts';
 import { dbConnection } from './DB_Connection';
-const inputs = require('@inquirer/inputs');
+const inputs = require('@inquirer/prompts');
 
 const LOAD_DELAY = 1000; // ms
 
@@ -39,7 +39,7 @@ async function langChosen(page: Page) {
 }
 
 // Function to select the installation profile
-async function profileChosen(page: Page, params: {lang: string}) {
+async function profileChosen(page: Page) {
     let choseArray = ['standard', 'minimal', 'demo_umami'];
 
     const answer = await select({
@@ -66,17 +66,42 @@ async function profileChosen(page: Page, params: {lang: string}) {
     }
 }
 
+async function InputType() {
+    const inputType = await select({
+        message: 'Select input type',
+        choices: [
+            { name: 'Default confing', value: 'default' },
+            { name: 'User input', value: 'user' },
+            { name: 'Path to config file', value: 'path' },
+        ],
+        default: 'default'
+    });
+    
+    if(inputType === 'user') return null;
+    let configPath = './auto-connection.json';
+    if(inputType === 'path') {
+        configPath = await input({message: 'Enter the path to the configuration file:', required: true});
+    }
+
+    return (await import(configPath)).default || (await import(configPath));
+}
+
 (async () => {
+    const inputType = await InputType();
+    console.log('inputType: ', inputType);
+
+    const siteUrl = inputType.url || await input({message: 'Enter the URL of your Drupal site (default: http://localhost:8080/):', default: 'http://localhost:8080/'});
+
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     try {
-        await page.goto('http://localhost:8080/', {waitUntil: 'load'});
+        await page.goto(siteUrl, {waitUntil: 'load'});
     } catch (error) {
         for(let i = 0; i < 3; i++) {
             console.error(`Error loading page: ${error.message}. Retrying... (${i + 1}/3)`);
             await new Promise(resolve => setTimeout(resolve, LOAD_DELAY));
             try {
-                await page.goto('http://localhost:8080/', {waitUntil: 'load'});
+                await page.goto(siteUrl, {waitUntil: 'load'});
                 break;
             } catch (err) {
                 if (i === 2) {
@@ -88,19 +113,19 @@ async function profileChosen(page: Page, params: {lang: string}) {
         }
     }
     if(!await page.$(`a[class="visually-hidden focusable skip-link"]`)) {
-        console.log(`Drupal is already installed. You can access your site at http://localhost:8080/ \n`);
+        console.log(`Drupal is already installed. You can access your site at ${siteUrl} \n`);
         await browser.close();
         return;
     }
 
     page.waitForSelector(`select[data-drupal-selector="edit-langcode"]`);
-    let lang = await langChosen(page);
-    let profile = await profileChosen(page, {lang});
+    const lang = inputType.lang || await langChosen(page);
+    const profile = inputType.profile || await profileChosen(page);
 
     let isDBConnected = false;
     while (!isDBConnected) {
         try{
-            await dbConnection(page, {lang, profile, browser});
+            await dbConnection(page, browser, {lang, profile, siteUrl}, inputType.db_connection);
         } catch (error) {
             console.error('Error during database connection setup:', error);
             await browser.close();
@@ -115,7 +140,7 @@ async function profileChosen(page: Page, params: {lang: string}) {
 
     try {
         await page.waitForSelector('ul', { timeout: 5000 });
-        console.log(`\nDrupal installation is already. You can access your site at http://localhost:8080/`);
+        console.log(`\nDrupal installation is already. You can access your site at ${siteUrl}`);
         await browser.close();
         return;
     } catch {
@@ -132,12 +157,12 @@ async function profileChosen(page: Page, params: {lang: string}) {
 
     console.log(`\nConfigure site`);
     console.log(`\tSite information`);
-    await page.type(`input[id="edit-site-name"]`, await input({message: 'Site name:', required: true}));
-    await page.type(`input[id="edit-site-mail"]`, await input({message: 'Site/Account email address:', required: true, validate: (input: string) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/).test(input)}));
+    await page.type(`input[id="edit-site-name"]`, inputType.site_data.name || await input({message: 'Site name:', required: true}));
+    await page.type(`input[id="edit-site-mail"]`, inputType.site_data.email || await input({message: 'Site/Account email address:', required: true, validate: (input: string) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/).test(input)}));
     console.log(`\tSite maintenance account`);
 
     let username;
-    let isValid = false;
+    let isValid = inputType? true : false;
     while (!isValid) {
         username = await input({message: 'Enter the username for the maintenance account:', required: true});
         const regex = /^[a-zA-Z0-9 .'\-_@]+$/;
@@ -146,8 +171,8 @@ async function profileChosen(page: Page, params: {lang: string}) {
             console.error(`Several special characters are allowed, including space, period (.), hyphen (-), apostrophe ('), underscore (_), and the @ sign.`);
         }
     }
-    await page.type(`input[id="edit-account-name"]`, username);
-    const password = await passwordEnter();
+    await page.type(`input[id="edit-account-name"]`, inputType.site_data.user || username);
+    const password = inputType.site_data.password || await passwordEnter();
     await page.type(`input[id="edit-account-pass-pass1"]`, password);
     await page.type(`input[id="edit-account-pass-pass2"]`, password);
 
@@ -156,7 +181,7 @@ async function profileChosen(page: Page, params: {lang: string}) {
         page.waitForNavigation({waitUntil: 'load'})
     ]);
 
-    console.log(`\nDrupal installation is complete! You can access your site at http://localhost:8080/`);
+    console.log(`\nDrupal installation is complete! You can access your site at ${siteUrl}`);
     await browser.close();
 })();
 

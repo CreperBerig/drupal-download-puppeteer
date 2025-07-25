@@ -1,0 +1,19 @@
+{
+    "url": "http://localhost:8080/",
+    "lang": "en",
+    "profile": "standart",
+    "db_connection": {
+        "type": "pgsql",
+        "name": "postgres",
+        "user": "postgres",
+        "password": "admin",
+        "host": "localhost",
+        "port": 5432
+    },
+    "site_data": {
+        "name": "My Site",
+        "user": "admin",
+        "password": "@dmin357",
+        "email": "admin@email.com"
+    }
+}
